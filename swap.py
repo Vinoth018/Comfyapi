@@ -9,8 +9,8 @@ from werkzeug.utils import secure_filename
 import base64
 from requests.exceptions import ConnectionError
  
-OUTPUT_FOLDER = r"C:\Users\umakanths\Desktop\Comfy\ComfyUI\output_images"
-INPUT_FOLDER = r"C:\Users\umakanths\Desktop\Comfy\ComfyUI\input"
+OUTPUT_FOLDER = r"C:\Users\umakanths\Desktop\Test\output_images"
+INPUT_FOLDER = r"C:\Users\umakanths\Desktop\Test\input"
 COMFYUI_URL = "http://127.0.0.1:8188"
  
 app = Flask(__name__, static_folder=OUTPUT_FOLDER, static_url_path=f'/{os.path.basename(OUTPUT_FOLDER)}')

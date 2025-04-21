@@ -1,0 +1,94 @@
+{
+  "1": {
+    "inputs": {
+      "image": "women.JPG"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "2": {
+    "inputs": {
+      "image": "women dress.JPG"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "4": {
+    "inputs": {
+      "sam_model": "sam_vit_h (2.56GB)",
+      "grounding_dino_model": "GroundingDINO_SwinT_OGC (694MB)",
+      "threshold": 0.3,
+      "detail_method": "VITMatte",
+      "detail_erode": 6,
+      "detail_dilate": 6,
+      "black_point": 0.010000000000000002,
+      "white_point": 0.99,
+      "process_detail": false,
+      "prompt": "Shirt",
+      "device": "cuda",
+      "max_megapixels": 2,
+      "cache_model": false,
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "LayerMask: SegmentAnythingUltra V2",
+    "_meta": {
+      "title": "LayerMask: SegmentAnythingUltra V2(Advance)"
+    }
+  },
+  "5": {
+    "inputs": {
+      "mask_grow": 25,
+      "mixed_precision": "fp16",
+      "seed": 691583618472845,
+      "steps": 40,
+      "cfg": 2.5,
+      "image": [
+        "1",
+        0
+      ],
+      "mask": [
+        "4",
+        1
+      ],
+      "refer_image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "CatVTONWrapper",
+    "_meta": {
+      "title": "CatVTON Wrapper"
+    }
+  },
+  "6": {
+    "inputs": {
+      "mask": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "LayerMask: MaskPreview",
+    "_meta": {
+      "title": "LayerMask: MaskPreview"
+    }
+  },
+  "7": {
+    "inputs": {
+      "images": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  }
+}
