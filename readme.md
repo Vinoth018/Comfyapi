@@ -14,7 +14,7 @@ prompt
 2. Image Upscale
 
 --> URL
-http://127.0.0.1:5003/image_upscale
+http://127.0.0.1:5003/upscale_image
 
 --> Form data:
-image
+input_image
