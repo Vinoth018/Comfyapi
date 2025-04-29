@@ -1,3 +1,5 @@
+# Ultimatesd upscale workflow
+
 # from flask import Flask, request, jsonify
 # import requests
 # import json
@@ -205,7 +207,8 @@
 #         return jsonify({"error": "Failed to upload image to ComfyUI"}), 500
 
 #     workflow = UPSCALER_WORKFLOW_JSON.copy()
-#     workflow["1"]["inputs"]["image"] = uploaded_filename
+#     # Use the original filename here, as the workflow expects "ComfyUI_temp_fkucz_00039_.png" internally
+#     workflow["1"]["inputs"]["image"] = os.path.basename(input_path)
 #     workflow["2"]["inputs"]["seed"] = random.randint(0, 0xFFFFFFFFFFFFFFFF)
 
 #     prompt_data = queue_prompt(workflow)
@@ -231,14 +234,16 @@
 #                         image_data = get_image_with_retry(output_filename, "", "temp")
 #                         if image_data:
 #                             try:
-#                                 output_filename_with_suffix = f"{os.path.splitext(input_filename_base)[0]}_{random_suffix}_upscaled.png"
-#                                 output_path = os.path.join(OUTPUT_FOLDER, output_filename_with_suffix)
+#                                 output_path = os.path.join(OUTPUT_FOLDER, f"{os.path.splitext(input_filename_base)[0]}_{random_suffix}_upscaled.png")
 #                                 with open(output_path, "wb") as f:
 #                                     f.write(image_data)
 
 #                                 if wait_for_image(output_path):
-#                                     image_url = f"{request.host_url}{os.path.basename(OUTPUT_FOLDER)}/{output_filename_with_suffix}"
-#                                     return jsonify({"output_image_url": image_url, "output_filename": output_filename_with_suffix})
+#                                     base64_image = encode_to_base64(output_path)
+#                                     if base64_image:
+#                                         return jsonify({"output_image_base64": base64_image, "output_filename": os.path.basename(output_path)})
+#                                     else:
+#                                         return jsonify({"error": "Failed to encode output image to base64."}), 500
 #                                 else:
 #                                     return jsonify({"error": "Image file was empty or not fully written."}), 500
 #                             except Exception as e:
@@ -250,7 +255,7 @@
 #                     print("Waiting for outputs...")
 #             else:
 #                 # print("Prompt not yet in history...")
-#             time.sleep(1)
+#                 time.sleep(1)
 #         except requests.exceptions.RequestException as e:
 #             print(f"Error while fetching history: {e}")
 #             time.sleep(1)
@@ -264,8 +269,8 @@
 
 
 
+# small workflow
 
-#Base64 image url
 from flask import Flask, request, jsonify
 import requests
 import json
@@ -276,8 +281,8 @@ from werkzeug.utils import secure_filename
 import base64
 from requests.exceptions import ConnectionError
 
-OUTPUT_FOLDER = r"C:\Users\umakanths\Desktop\Test\output_images"
-INPUT_FOLDER = r"C:\Users\umakanths\Desktop\Test\input"
+OUTPUT_FOLDER = r"C:\Users\umakanths\Desktop\Comfy Api\output_images"
+INPUT_FOLDER = r"C:\Users\umakanths\Desktop\Comfy Api\input"
 COMFYUI_URL = "http://127.0.0.1:8188"
 
 app = Flask(__name__, static_folder=OUTPUT_FOLDER, static_url_path=f'/{os.path.basename(OUTPUT_FOLDER)}')
@@ -321,8 +326,9 @@ def safe_request(method, url, max_retries=5, delay=1, **kwargs):
             else:
                 raise
 
+
 def upload_image_to_comfyui(image_data, filename):
-    files = {"image": (filename, image_data, "image/png")}
+    files = {"image": (filename, image_data, "image/jpeg")}
     try:
         response = safe_request("POST", f"{COMFYUI_URL}/upload/image", files=files)
         if response.status_code == 200:
@@ -384,77 +390,76 @@ def wait_for_image(filepath, timeout=60, poll_interval=1):
         time.sleep(poll_interval)
     return False
 
-# Upscale Workflow JSON (as provided)
-UPSCALER_WORKFLOW_JSON = {
+# Updated Upscale Workflow JSON
+UPSCALE_WORKFLOW_JSON = {
     "1": {
-        "inputs": {"image": "ComfyUI_temp_fkucz_00039_.png"},
-        "class_type": "LoadImage",
-        "_meta": {"title": "Load Image"}
+        "inputs": {
+            "model_name": "RealESRGAN_x4.pth"
+        },
+        "class_type": "UpscaleModelLoader",
+        "_meta": {
+            "title": "Load Upscale Model"
+        }
     },
     "2": {
         "inputs": {
-            "upscale_by": 1.5000000000000002,
-            "seed": 908913574481142,
-            "steps": 10,
-            "cfg": 5,
-            "sampler_name": "euler",
-            "scheduler": "normal",
-            "denoise": 0.20000000000000004,
-            "mode_type": "Linear",
-            "tile_width": 512,
-            "tile_height": 512,
-            "mask_blur": 8,
-            "tile_padding": 32,
-            "seam_fix_mode": "None",
-            "seam_fix_denoise": 1,
-            "seam_fix_width": 64,
-            "seam_fix_mask_blur": 8,
-            "seam_fix_padding": 16,
-            "force_uniform_tiles": True,
-            "tiled_decode": False,
-            "image": ["1", 0],
-            "model": ["3", 0],
-            "positive": ["5", 0],
-            "negative": ["6", 0],
-            "vae": ["3", 2],
-            "upscale_model": ["7", 0]
+            "upscale_model": [
+                "1",
+                0
+            ],
+            "image": [
+                "4",
+                0
+            ]
         },
-        "class_type": "UltimateSDUpscale",
-        "_meta": {"title": "Ultimate SD Upscale"}
+        "class_type": "ImageUpscaleWithModel",
+        "_meta": {
+            "title": "Upscale Image (using Model)"
+        }
     },
-    "3": {
-        "inputs": {"ckpt_name": "FLUX1\\flux1-dev-fp8.safetensors"},
-        "class_type": "CheckpointLoaderSimple",
-        "_meta": {"title": "Load Checkpoint"}
-    },
-    "5": {
-        "inputs": {"clip_l": "", "t5xxl": "", "guidance": 3.5, "clip": ["3", 1]},
-        "class_type": "CLIPTextEncodeFlux",
-        "_meta": {"title": "CLIPTextEncodeFlux"}
-    },
-    "6": {
-        "inputs": {"clip_l": "", "t5xxl": "", "guidance": 3.5, "clip": ["3", 1]},
-        "class_type": "CLIPTextEncodeFlux",
-        "_meta": {"title": "CLIPTextEncodeFlux"}
+    "4": {
+        "inputs": {
+            "image": "input_image.png" # Placeholder, will be updated
+        },
+        "class_type": "LoadImage",
+        "_meta": {
+            "title": "Load Image"
+        }
     },
     "7": {
-        "inputs": {"model_name": "RealESRGAN_x2.pth"},
-        "class_type": "UpscaleModelLoader",
-        "_meta": {"title": "Load Upscale Model"}
+        "inputs": {
+            "upscale_method": "lanczos",
+            "scale_by": 1.0000000000000002,
+            "image": [
+                "2",
+                0
+            ]
+        },
+        "class_type": "ImageScaleBy",
+        "_meta": {
+            "title": "Upscale Image By"
+        }
     },
-    "10": {
-        "inputs": {"images": ["2", 0]},
+    "11": {
+        "inputs": {
+            "images": [
+                "7",
+                0
+            ]
+        },
         "class_type": "PreviewImage",
-        "_meta": {"title": "Preview Image"}
+        "_meta": {
+            "title": "Preview Image"
+        }
     }
 }
 
 @app.route('/upscale_image', methods=['POST'])
 def upscale_image():
-    if 'input_image' not in request.files:
-        return jsonify({"error": "Missing input_image file"}), 400
+    if 'image' not in request.files:
+        return jsonify({"error": "Missing image file"}), 400
 
-    input_image_file = request.files['input_image']
+    input_image_file = request.files['image']
     input_filename_base = secure_filename(input_image_file.filename)
     random_suffix = generate_random_digits()
     input_filename = f"{os.path.splitext(input_filename_base)[0]}_{random_suffix}{os.path.splitext(input_filename_base)[1]}"
@@ -472,10 +477,8 @@ def upscale_image():
     if not uploaded_filename:
         return jsonify({"error": "Failed to upload image to ComfyUI"}), 500
 
-    workflow = UPSCALER_WORKFLOW_JSON.copy()
-    # Use the original filename here, as the workflow expects "ComfyUI_temp_fkucz_00039_.png" internally
-    workflow["1"]["inputs"]["image"] = os.path.basename(input_path)
-    workflow["2"]["inputs"]["seed"] = random.randint(0, 0xFFFFFFFFFFFFFFFF)
+    workflow = UPSCALE_WORKFLOW_JSON.copy()
+    workflow["4"]["inputs"]["image"] = uploaded_filename
 
     prompt_data = queue_prompt(workflow)
     if 'prompt_id' not in prompt_data:
@@ -483,7 +486,7 @@ def upscale_image():
 
     prompt_id = prompt_data['prompt_id']
     start_time = time.time()
-    max_wait_time = 300  # Increased wait time to 5 minutes
+    max_wait_time = 120
 
     while (time.time() - start_time) < max_wait_time:
         try:
@@ -494,39 +497,27 @@ def upscale_image():
                     outputs = history[prompt_id]['outputs']
                     print(f"Outputs: {json.dumps(outputs, indent=4)}")
 
-                    # Get the upscaled image (from node ID 10)
-                    output_filename = outputs.get("10", {}).get("images", [{}])[0].get("filename")
-                    if output_filename:
-                        image_data = get_image_with_retry(output_filename, "", "temp")
-                        if image_data:
-                            try:
-                                output_path = os.path.join(OUTPUT_FOLDER, f"{os.path.splitext(input_filename_base)[0]}_{random_suffix}_upscaled.png")
-                                with open(output_path, "wb") as f:
-                                    f.write(image_data)
+                    # Get the upscaled image info from node ID 11
+                    if "11" in outputs and "images" in outputs["11"] and outputs["11"]["images"]:
+                        output_info = outputs["11"]["images"][0]
+                        output_filename = output_info["filename"]
+                        output_subfolder = output_info["subfolder"]
+                        output_type = output_info["type"]  # Should be "temp"
 
-                                if wait_for_image(output_path):
-                                    base64_image = encode_to_base64(output_path)
-                                    if base64_image:
-                                        return jsonify({"output_image_base64": base64_image, "output_filename": os.path.basename(output_path)})
-                                    else:
-                                        return jsonify({"error": "Failed to encode output image to base64."}), 500
-                                else:
-                                    return jsonify({"error": "Image file was empty or not fully written."}), 500
-                            except Exception as e:
-                                print(f"Error saving image: {e}")
-                                return jsonify({"error": "Failed to save image", "details": str(e)}), 500
+                        image_data = get_image_with_retry(output_filename, output_subfolder, output_type)
+
+                        if image_data:
+                            # Encode the image data to Base64 directly
+                            base64_encoded = base64.b64encode(image_data).decode('utf-8')
+                            return jsonify({"output_image_base64": base64_encoded})
                         else:
-                            return jsonify({"error": "Failed to retrieve upscaled image data."}), 500
-                else:
-                    print("Waiting for outputs...")
-            else:
-                # print("Prompt not yet in history...")
+                            return jsonify({"error": "Failed to retrieve upscaled image data from ComfyUI."}), 500
                 time.sleep(1)
         except requests.exceptions.RequestException as e:
             print(f"Error while fetching history: {e}")
             time.sleep(1)
 
-    return jsonify({"error": "Failed to generate image within the time limit."}, 500)
+    return jsonify({"error": "Failed to generate upscaled image within the time limit."}, 500)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5003)
